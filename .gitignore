@@ -7,8 +7,8 @@ src/generated/
 coverage/
 *.tsbuildinfo
 
-# local AI assistant skill caches (auto-installed by CLI tools), not app source
-.agents/
-.claude/
-.windsurf/
-skills-lock.json
+# # local AI assistant skill caches (auto-installed by CLI tools), not app source
+# .agents/
+# .claude/
+# .windsurf/
+# skills-lock.json
