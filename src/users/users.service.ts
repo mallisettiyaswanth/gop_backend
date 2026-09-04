@@ -21,6 +21,7 @@ export class UsersService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
+    const pinHash = dto.pin ? await bcrypt.hash(dto.pin, SALT_ROUNDS) : undefined;
 
     const user = await this.prisma.user.create({
       data: {
@@ -28,6 +29,7 @@ export class UsersService {
         email: dto.email,
         phone: dto.phone,
         passwordHash,
+        pinHash,
         role: dto.role,
       },
     });

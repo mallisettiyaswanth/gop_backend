@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -10,14 +10,28 @@ export class AuthService {
     private jwt: JwtService,
   ) {}
 
-  async login(email: string, password: string) {
+  async login(email: string, password?: string, pin?: string) {
+    if (!password && !pin) {
+      throw new BadRequestException('Provide a password or a PIN');
+    }
+    if (password && pin) {
+      throw new BadRequestException('Provide either a password or a PIN, not both');
+    }
+
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || !user.isActive) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const passwordMatches = await bcrypt.compare(password, user.passwordHash);
-    if (!passwordMatches) {
+    const credentialHash = password ? user.passwordHash : user.pinHash;
+    const credentialValue = password ?? pin!;
+
+    if (!credentialHash) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const matches = await bcrypt.compare(credentialValue, credentialHash);
+    if (!matches) {
       throw new UnauthorizedException('Invalid credentials');
     }
 

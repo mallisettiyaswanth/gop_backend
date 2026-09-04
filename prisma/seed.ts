@@ -18,25 +18,31 @@ async function main() {
 
   const email = process.env.SUPER_ADMIN_EMAIL;
   const password = process.env.SUPER_ADMIN_PASSWORD;
+  const pin = process.env.SUPER_ADMIN_PIN;
 
   if (!email || !password) {
     throw new Error('SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD must be set in backend/.env to seed');
   }
+  if (pin && !/^\d{4}$/.test(pin)) {
+    throw new Error('SUPER_ADMIN_PIN must be exactly 4 digits');
+  }
 
   const passwordHash = await bcrypt.hash(password, 12);
+  const pinHash = pin ? await bcrypt.hash(pin, 12) : undefined;
 
   await prisma.user.upsert({
     where: { email },
-    update: {},
+    update: { pinHash },
     create: {
       name: process.env.SUPER_ADMIN_NAME ?? 'Super Admin',
       email,
       passwordHash,
+      pinHash,
       role: Role.SUPER_ADMIN,
     },
   });
 
-  console.log(`Seeded gym settings and super admin (${email}).`);
+  console.log(`Seeded gym settings and super admin (${email})${pin ? ' with a PIN' : ''}.`);
 }
 
 main()
