@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateMemberDto } from './dto/create-member.dto.js';
 import { UpdateMemberDto } from './dto/update-member.dto.js';
@@ -9,6 +9,11 @@ export class MembersService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateMemberDto) {
+    const existing = await this.prisma.member.findUnique({ where: { phone: dto.phone } });
+    if (existing) {
+      throw new ConflictException('A member with this phone number already exists');
+    }
+
     const memberCode = await this.generateMemberCode();
 
     return this.prisma.member.create({
@@ -54,6 +59,13 @@ export class MembersService {
 
   async update(id: string, dto: UpdateMemberDto) {
     await this.findOne(id);
+
+    if (dto.phone) {
+      const existing = await this.prisma.member.findUnique({ where: { phone: dto.phone } });
+      if (existing && existing.id !== id) {
+        throw new ConflictException('A member with this phone number already exists');
+      }
+    }
 
     return this.prisma.member.update({
       where: { id },
