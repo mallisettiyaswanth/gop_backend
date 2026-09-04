@@ -1,7 +1,14 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
+import { UpdateCredentialsDto } from './dto/update-credentials.dto.js';
 import { Role } from '../generated/prisma/enums.js';
 
 const SALT_ROUNDS = 12;
@@ -45,6 +52,33 @@ export class UsersService {
   async deactivate(id: string) {
     const user = await this.prisma.user.update({ where: { id }, data: { isActive: false } });
     return this.toSafeUser(user);
+  }
+
+  async changeOwnCredentials(userId: string, dto: UpdateCredentialsDto) {
+    if (!dto.newPassword && !dto.newPin) {
+      throw new BadRequestException('Provide a new password or PIN to update');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const matches = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!matches) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const data: { passwordHash?: string; pinHash?: string } = {};
+    if (dto.newPassword) {
+      data.passwordHash = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);
+    }
+    if (dto.newPin) {
+      data.pinHash = await bcrypt.hash(dto.newPin, SALT_ROUNDS);
+    }
+
+    const updated = await this.prisma.user.update({ where: { id: userId }, data });
+    return this.toSafeUser(updated);
   }
 
   private toSafeUser(user: {
