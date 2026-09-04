@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import type { StringValue } from 'ms';
 import { AuthService } from './auth.service.js';
@@ -9,7 +8,9 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
 
 @Module({
   imports: [
-    PassportModule,
+    // PassportModule itself is registered once, globally, in CommonModule —
+    // JwtStrategy doesn't need it directly (it registers itself with
+    // passport's singleton on construction).
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
