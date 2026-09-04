@@ -1,0 +1,225 @@
+// v0 single-gym schema. No tenant_id/branch_id — see gym-operating-system-scaffold.md Section 0.
+// All access must go through a repository/service layer per module (see root CLAUDE.md),
+// so a tenant scope can be added here later without touching call sites.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  MEMBER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum MemberStatus {
+  ACTIVE
+  EXPIRING_SOON
+  EXPIRED
+  FROZEN
+  CANCELLED
+  PENDING
+}
+
+enum MembershipStatus {
+  ACTIVE
+  EXPIRING
+  EXPIRED
+  FROZEN
+  CANCELLED
+}
+
+enum AttendanceMethod {
+  QR
+  MANUAL
+  IP_WIFI
+  KIOSK
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+  NETBANKING
+  GATEWAY
+}
+
+enum PaymentStatus {
+  SUCCESS
+  PENDING
+  FAILED
+  REFUNDED
+}
+
+/// Single row holding this gym's profile. One row today; becomes one row per
+/// tenant later — never hardcode these values elsewhere.
+model GymSettings {
+  id         String   @id @default(uuid())
+  name       String
+  address    String?
+  phone      String?
+  email      String?
+  gstNumber  String?  @map("gst_number")
+  timezone   String   @default("Asia/Kolkata")
+  currency   String   @default("INR")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("gym_settings")
+}
+
+/// Staff accounts (Super Admin / Admin). Optionally linked to a Member for
+/// future member-portal login.
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  phone        String?
+  passwordHash String   @map("password_hash")
+  role         Role
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  member             Member?
+  recordedAttendance Attendance[] @relation("AttendanceRecordedBy")
+  recordedPayments   Payment[]    @relation("PaymentRecordedBy")
+
+  @@map("users")
+}
+
+model Member {
+  id                     String       @id @default(uuid())
+  memberCode             String       @unique @map("member_code")
+  name                   String
+  photoUrl               String?      @map("photo_url")
+  phone                  String       @unique
+  email                  String?
+  dob                    DateTime?
+  gender                 Gender?
+  address                String?
+  emergencyContactName   String?      @map("emergency_contact_name")
+  emergencyContactPhone  String?      @map("emergency_contact_phone")
+  joinDate               DateTime     @default(now()) @map("join_date")
+  notes                  String?
+  status                 MemberStatus @default(PENDING)
+  userId                 String?      @unique @map("user_id")
+  createdAt              DateTime     @default(now()) @map("created_at")
+  updatedAt              DateTime     @updatedAt @map("updated_at")
+
+  user        User?        @relation(fields: [userId], references: [id])
+  memberships Membership[]
+  attendance  Attendance[]
+  payments    Payment[]
+  invoices    Invoice[]
+
+  @@index([status])
+  @@map("members")
+}
+
+model MembershipPlan {
+  id           String   @id @default(uuid())
+  name         String
+  durationDays Int      @map("duration_days")
+  price        Decimal  @db.Decimal(10, 2)
+  taxPercent   Decimal  @default(0) @db.Decimal(5, 2) @map("tax_percent")
+  joiningFee   Decimal  @default(0) @db.Decimal(10, 2) @map("joining_fee")
+  visitLimit   Int?     @map("visit_limit")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  memberships Membership[]
+
+  @@map("membership_plans")
+}
+
+model Membership {
+  id          String           @id @default(uuid())
+  memberId    String           @map("member_id")
+  planId      String           @map("plan_id")
+  startDate   DateTime         @map("start_date")
+  endDate     DateTime         @map("end_date")
+  status      MembershipStatus @default(ACTIVE)
+  freezeStart DateTime?        @map("freeze_start")
+  freezeEnd   DateTime?        @map("freeze_end")
+  price       Decimal          @db.Decimal(10, 2) // snapshot of plan price at purchase time
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  member   Member         @relation(fields: [memberId], references: [id])
+  plan     MembershipPlan @relation(fields: [planId], references: [id])
+  payments Payment[]
+
+  @@index([memberId])
+  @@index([status])
+  @@index([endDate])
+  @@map("memberships")
+}
+
+model Attendance {
+  id             String           @id @default(uuid())
+  memberId       String           @map("member_id")
+  checkInAt      DateTime         @default(now()) @map("check_in_at")
+  method         AttendanceMethod
+  sourceIp       String?          @map("source_ip")
+  recordedById   String?          @map("recorded_by_id")
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  member     Member @relation(fields: [memberId], references: [id])
+  recordedBy User?  @relation("AttendanceRecordedBy", fields: [recordedById], references: [id])
+
+  @@index([memberId])
+  @@index([checkInAt])
+  @@map("attendance")
+}
+
+model Payment {
+  id           String        @id @default(uuid())
+  memberId     String        @map("member_id")
+  membershipId String?       @map("membership_id")
+  amount       Decimal       @db.Decimal(10, 2)
+  method       PaymentMethod
+  status       PaymentStatus @default(SUCCESS)
+  providerRef  String?       @map("provider_ref")
+  paidAt       DateTime      @default(now()) @map("paid_at")
+  recordedById String?       @map("recorded_by_id")
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  member     Member      @relation(fields: [memberId], references: [id])
+  membership Membership? @relation(fields: [membershipId], references: [id])
+  recordedBy User?       @relation("PaymentRecordedBy", fields: [recordedById], references: [id])
+  invoice    Invoice?
+
+  @@index([memberId])
+  @@index([paidAt])
+  @@map("payments")
+}
+
+model Invoice {
+  id            String   @id @default(uuid())
+  invoiceNumber String   @unique @map("invoice_number")
+  paymentId     String   @unique @map("payment_id")
+  memberId      String   @map("member_id")
+  subtotal      Decimal  @db.Decimal(10, 2)
+  tax           Decimal  @default(0) @db.Decimal(10, 2)
+  total         Decimal  @db.Decimal(10, 2)
+  issuedAt      DateTime @default(now()) @map("issued_at")
+  pdfUrl        String?  @map("pdf_url")
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+  member  Member  @relation(fields: [memberId], references: [id])
+
+  @@map("invoices")
+}

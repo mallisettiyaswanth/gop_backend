@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env.*.local
+src/generated/
+*.log
+coverage/
+*.tsbuildinfo
+
+# local AI assistant skill caches (auto-installed by CLI tools), not app source
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
