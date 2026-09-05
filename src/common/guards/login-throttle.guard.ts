@@ -15,6 +15,12 @@ const attempts = new Map<string, Bucket>();
 @Injectable()
 export class LoginThrottleGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
+    // Only enforced in production — repeated logins while developing/testing
+    // shouldn't lock anyone out.
+    if (process.env.NODE_ENV !== 'production') {
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest();
     const email = typeof request.body?.email === 'string' ? request.body.email.toLowerCase() : 'unknown';
     const key = `${request.ip}:${email}`;
