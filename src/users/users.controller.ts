@@ -31,6 +31,12 @@ export class UsersController {
   }
 
   @Roles(Role.SUPER_ADMIN, Role.ADMIN)
+  @Get('me')
+  getOwnProfile(@CurrentUser() user: AuthenticatedUser) {
+    return this.usersService.getOwnProfile(user.id);
+  }
+
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
   @Patch('me/credentials')
   updateOwnCredentials(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpdateCredentialsDto) {
     return this.usersService.changeOwnCredentials(user.id, dto);

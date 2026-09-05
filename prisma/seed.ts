@@ -29,15 +29,19 @@ async function main() {
 
   const passwordHash = await bcrypt.hash(password, 12);
   const pinHash = pin ? await bcrypt.hash(pin, 12) : undefined;
+  // Only touch pinEnabled when a PIN is being (re)seeded, so re-running seed
+  // without SUPER_ADMIN_PIN doesn't clobber a toggle made later via the app.
+  const pinEnabled = pin ? true : undefined;
 
   await prisma.user.upsert({
     where: { email },
-    update: { pinHash },
+    update: { pinHash, pinEnabled },
     create: {
       name: process.env.SUPER_ADMIN_NAME ?? 'Super Admin',
       email,
       passwordHash,
       pinHash,
+      pinEnabled: pinEnabled ?? false,
       role: Role.SUPER_ADMIN,
     },
   });

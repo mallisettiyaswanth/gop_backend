@@ -23,7 +23,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const credentialHash = password ? user.passwordHash : user.pinHash;
+    const credentialHash = password ? user.passwordHash : pin && user.pinEnabled ? user.pinHash : null;
     const credentialValue = password ?? pin!;
 
     if (!credentialHash) {
@@ -41,5 +41,16 @@ export class AuthService {
       accessToken,
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
     };
+  }
+
+  /**
+   * Public, pre-authentication check so the login page can ask for a
+   * password or PIN without the user having to pick blindly. Returns
+   * pinEnabled: false for unknown/inactive emails too, so the response
+   * never reveals whether an account exists.
+   */
+  async getLoginMethod(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    return { pinEnabled: !!(user && user.isActive && user.pinEnabled && user.pinHash) };
   }
 }
