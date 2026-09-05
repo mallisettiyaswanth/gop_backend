@@ -1,4 +1,4 @@
-import { IsNumber, IsString, Min, MinLength } from 'class-validator';
+import { IsInt, IsNumber, IsString, Min, MinLength } from 'class-validator';
 
 export class PriceTierDto {
   @IsString()
@@ -8,4 +8,9 @@ export class PriceTierDto {
   @IsNumber()
   @Min(0)
   price!: number;
+
+  /** How many days a purchase of this tier keeps the membership valid for. */
+  @IsInt()
+  @Min(1)
+  durationDays!: number;
 }
