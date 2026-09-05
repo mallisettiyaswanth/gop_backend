@@ -2,7 +2,10 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateMemberDto } from './dto/create-member.dto.js';
 import { UpdateMemberDto } from './dto/update-member.dto.js';
+import { QueryMembersDto } from './dto/query-members.dto.js';
 import { MemberStatus } from '../generated/prisma/enums.js';
+import { Prisma } from '../generated/prisma/client.js';
+import { computeStreak } from './streak.util.js';
 
 @Injectable()
 export class MembersService {
@@ -33,11 +36,59 @@ export class MembersService {
     });
   }
 
-  findAll(status?: MemberStatus) {
-    return this.prisma.member.findMany({
-      where: status ? { status } : undefined,
-      orderBy: { createdAt: 'desc' },
+  async findAll(query: QueryMembersDto) {
+    const { skip, limit, sortBy, sortDir, search, status, planId } = query;
+
+    const where: Prisma.MemberWhereInput = {
+      ...(status ? { status: { in: status.split(',') as MemberStatus[] } } : {}),
+      ...(planId ? { memberships: { some: { planId: { in: planId.split(',') } } } } : {}),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { phone: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+              { memberCode: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+
+    const [members, total] = await Promise.all([
+      this.prisma.member.findMany({
+        where,
+        orderBy: sortBy ? { [sortBy]: sortDir ?? 'asc' } : { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          memberships: {
+            orderBy: { startDate: 'desc' },
+            take: 1,
+            include: { plan: true },
+          },
+        },
+      }),
+      this.prisma.member.count({ where }),
+    ]);
+
+    const attendanceByMember = await this.prisma.attendance.findMany({
+      where: { memberId: { in: members.map((member) => member.id) } },
+      select: { memberId: true, checkInAt: true },
     });
+    const checkInsByMemberId = new Map<string, Date[]>();
+    for (const { memberId, checkInAt } of attendanceByMember) {
+      const dates = checkInsByMemberId.get(memberId) ?? [];
+      dates.push(checkInAt);
+      checkInsByMemberId.set(memberId, dates);
+    }
+
+    const data = members.map(({ memberships, ...member }) => ({
+      ...member,
+      membership: memberships[0] ?? null,
+      streak: computeStreak(checkInsByMemberId.get(member.id) ?? []),
+    }));
+
+    return { data, total, skip, limit };
   }
 
   async findOne(id: string) {

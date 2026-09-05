@@ -13,6 +13,7 @@ export class MembershipPlansService {
         name: dto.name,
         category: dto.category,
         level: dto.level,
+        color: dto.color,
         description: dto.description,
         priceTiers: dto.priceTiers.map((tier) => ({
           label: tier.label,
@@ -51,6 +52,7 @@ export class MembershipPlansService {
         name: dto.name,
         category: dto.category,
         level: dto.level,
+        color: dto.color,
         description: dto.description,
         priceTiers: dto.priceTiers?.map((tier) => ({
           label: tier.label,

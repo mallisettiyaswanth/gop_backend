@@ -2,10 +2,11 @@ import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@ne
 import { MembersService } from './members.service.js';
 import { CreateMemberDto } from './dto/create-member.dto.js';
 import { UpdateMemberDto } from './dto/update-member.dto.js';
+import { QueryMembersDto } from './dto/query-members.dto.js';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../common/guards/roles.guard.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
-import { Role, MemberStatus } from '../generated/prisma/enums.js';
+import { Role } from '../generated/prisma/enums.js';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.SUPER_ADMIN, Role.ADMIN)
@@ -19,8 +20,8 @@ export class MembersController {
   }
 
   @Get()
-  findAll(@Query('status') status?: MemberStatus) {
-    return this.membersService.findAll(status);
+  findAll(@Query() query: QueryMembersDto) {
+    return this.membersService.findAll(query);
   }
 
   @Get(':id')

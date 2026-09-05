@@ -140,6 +140,8 @@ model MembershipPlan {
   category    String?
   level       String?
   description String?
+  /// Hex color (e.g. "#22c55e") used to highlight members on this plan in tables.
+  color       String?
   priceTiers  Json     @default("[]") @map("price_tiers")
   joiningFee  Decimal  @default(0) @db.Decimal(10, 2) @map("joining_fee")
   taxPercent  Decimal  @default(0) @db.Decimal(5, 2) @map("tax_percent")
