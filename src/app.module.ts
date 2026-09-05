@@ -5,6 +5,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { UsersModule } from './users/users.module.js';
 import { MembersModule } from './members/members.module.js';
+import { MembershipPlansModule } from './membership-plans/membership-plans.module.js';
 import { SettingsModule } from './settings/settings.module.js';
 
 @Module({
@@ -15,6 +16,7 @@ import { SettingsModule } from './settings/settings.module.js';
     AuthModule,
     UsersModule,
     MembersModule,
+    MembershipPlansModule,
     SettingsModule,
   ],
 })
