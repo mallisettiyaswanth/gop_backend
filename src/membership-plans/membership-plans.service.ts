@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateMembershipPlanDto } from './dto/create-membership-plan.dto.js';
 import { UpdateMembershipPlanDto } from './dto/update-membership-plan.dto.js';
@@ -7,19 +7,14 @@ import { UpdateMembershipPlanDto } from './dto/update-membership-plan.dto.js';
 export class MembershipPlansService {
   constructor(private prisma: PrismaService) {}
 
-  async create(dto: CreateMembershipPlanDto) {
-    if (dto.dailyPrice == null && dto.monthlyPrice == null && dto.yearlyPrice == null) {
-      throw new BadRequestException('Provide at least one price: daily, monthly, or yearly');
-    }
-
+  create(dto: CreateMembershipPlanDto) {
     return this.prisma.membershipPlan.create({
       data: {
         name: dto.name,
+        category: dto.category,
         level: dto.level,
         description: dto.description,
-        dailyPrice: dto.dailyPrice,
-        monthlyPrice: dto.monthlyPrice,
-        yearlyPrice: dto.yearlyPrice,
+        priceTiers: dto.priceTiers.map((tier) => ({ label: tier.label, price: tier.price })),
         joiningFee: dto.joiningFee ?? 0,
         taxPercent: dto.taxPercent ?? 0,
         visitLimit: dto.visitLimit,
@@ -46,6 +41,21 @@ export class MembershipPlansService {
 
   async update(id: string, dto: UpdateMembershipPlanDto) {
     await this.findOne(id);
-    return this.prisma.membershipPlan.update({ where: { id }, data: dto });
+    return this.prisma.membershipPlan.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        category: dto.category,
+        level: dto.level,
+        description: dto.description,
+        priceTiers: dto.priceTiers?.map((tier) => ({ label: tier.label, price: tier.price })),
+        joiningFee: dto.joiningFee,
+        taxPercent: dto.taxPercent,
+        visitLimit: dto.visitLimit,
+        features: dto.features,
+        isActive: dto.isActive,
+        sortOrder: dto.sortOrder,
+      },
+    });
   }
 }

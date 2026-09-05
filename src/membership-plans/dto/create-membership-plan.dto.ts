@@ -1,4 +1,6 @@
+import { Type } from 'class-transformer';
 import {
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsInt,
@@ -7,11 +9,17 @@ import {
   IsString,
   Max,
   Min,
+  ValidateNested,
 } from 'class-validator';
+import { PriceTierDto } from './price-tier.dto.js';
 
 export class CreateMembershipPlanDto {
   @IsString()
   name!: string;
+
+  @IsOptional()
+  @IsString()
+  category?: string;
 
   @IsOptional()
   @IsString()
@@ -21,20 +29,11 @@ export class CreateMembershipPlanDto {
   @IsString()
   description?: string;
 
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  dailyPrice?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  monthlyPrice?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  yearlyPrice?: number;
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Add at least one price tier' })
+  @ValidateNested({ each: true })
+  @Type(() => PriceTierDto)
+  priceTiers!: PriceTierDto[];
 
   @IsOptional()
   @IsNumber()
